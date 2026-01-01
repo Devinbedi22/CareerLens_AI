@@ -39,7 +39,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-# TEMP: ignore backend for frontend-only push
-prisma/
-lib/
-actions/
+ 
