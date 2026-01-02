@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { generateCoverLetter } from "@/actions/cover-letter";
 import useFetch from "@/hooks/use-fetch";
-import { coverLetterSchema } from "@/app/lib/schema";
+import { coverLetterSchema } from "@/lib/inngest/schema";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 

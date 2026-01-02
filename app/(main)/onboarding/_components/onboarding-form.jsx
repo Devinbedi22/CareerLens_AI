@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import useFetch from "@/hooks/use-fetch";
-import { onboardingSchema } from "@/app/lib/schema";
+import { onboardingSchema } from "@/lib/inngest/schema";
 import { updateUser } from "@/actions/user";
 
 const OnboardingForm = ({ industries }) => {
