@@ -115,18 +115,114 @@ export default function ResumeBuilder({ initialContent }) {
   const generatePDF = async () => {
     setIsGenerating(true);
     try {
-      const element = document.getElementById("resume-pdf");
+      let element = document.getElementById("resume-pdf");
+      
+      // If element doesn't exist or is empty, create it temporarily
+      if (!element || !element.innerHTML.trim()) {
+        console.log("Creating temporary PDF element...");
+        
+        // Create temporary container
+        const tempContainer = document.createElement('div');
+        tempContainer.id = 'temp-resume-pdf';
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.top = '0';
+        tempContainer.style.background = 'white';
+        tempContainer.style.padding = '20px';
+        
+        // Create a simple HTML version of the markdown
+        const tempDiv = document.createElement('div');
+        tempDiv.style.background = 'white';
+        tempDiv.style.color = 'black';
+        tempDiv.style.padding = '40px';
+        tempDiv.style.fontFamily = 'Arial, sans-serif';
+        tempDiv.style.lineHeight = '1.6';
+        
+        // Simple markdown to HTML conversion
+        const htmlContent = previewContent
+          .replace(/^## (.+)$/gm, '<h2 style="margin-top: 20px; margin-bottom: 10px; font-size: 24px;">$1</h2>')
+          .replace(/^### (.+)$/gm, '<h3 style="margin-top: 15px; margin-bottom: 8px; font-size: 20px;">$1</h3>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+          .replace(/\n\n/g, '</p><p style="margin: 10px 0;">')
+          .replace(/\n/g, '<br>');
+        
+        tempDiv.innerHTML = '<p style="margin: 10px 0;">' + htmlContent + '</p>';
+        tempContainer.appendChild(tempDiv);
+        document.body.appendChild(tempContainer);
+        element = tempContainer;
+        
+        // Clean up after PDF generation
+        setTimeout(() => {
+          if (document.body.contains(tempContainer)) {
+            document.body.removeChild(tempContainer);
+          }
+        }, 2000);
+      }
+      
+      if (!element) {
+        toast.error("Unable to generate PDF. Please try again.");
+        return;
+      }
+
+      // Clone the element to avoid modifying the original
+      const clonedElement = element.cloneNode(true);
+      
+      // Remove ALL potentially problematic elements
+      const problematicSelectors = [
+        'video', 'audio', 'iframe', 'object', 'embed', 'canvas',
+        'script', 'noscript', 'link[rel="stylesheet"]',
+        '[data-html2canvas-ignore]',
+        'svg'
+      ];
+      
+      problematicSelectors.forEach(selector => {
+        clonedElement.querySelectorAll(selector).forEach(el => el.remove());
+      });
+      
+      // Fix Next.js Image components (convert to regular img)
+      const nextImages = clonedElement.querySelectorAll('img[srcset]');
+      nextImages.forEach(img => {
+        img.removeAttribute('srcset');
+        img.removeAttribute('sizes');
+      });
+      
+      // Remove background images and convert to solid colors
+      clonedElement.querySelectorAll('*').forEach(el => {
+        if (el.style.backgroundImage && el.style.backgroundImage !== 'none') {
+          el.style.backgroundImage = 'none';
+          el.style.backgroundColor = el.style.backgroundColor || '#ffffff';
+        }
+        // Remove animations and transitions
+        el.style.animation = 'none';
+        el.style.transition = 'none';
+      });
+
       const opt = {
         margin: [15, 15],
-        filename: "resume.pdf",
+        filename: `${user?.firstName || 'resume'}_resume.pdf`,
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          logging: false,
+          letterRendering: true,
+          scrollY: 0,
+          scrollX: 0,
+        },
+        jsPDF: { 
+          unit: "mm", 
+          format: "a4", 
+          orientation: "portrait" 
+        },
       };
 
-      await html2pdf().set(opt).from(element).save();
+      await html2pdf().set(opt).from(clonedElement).save();
+      toast.success("PDF downloaded successfully!");
     } catch (error) {
       console.error("PDF generation error:", error);
+      toast.error(`Failed to generate PDF: ${error.message || 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -389,7 +485,7 @@ export default function ResumeBuilder({ initialContent }) {
             <div className="flex p-3 gap-2 items-center border-2 border-yellow-600 text-yellow-600 rounded mb-2">
               <AlertTriangle className="h-5 w-5" />
               <span className="text-sm">
-                You will lose editied markdown if you update the form data.
+                You will lose edited markdown if you update the form data.
               </span>
             </div>
           )}
@@ -401,19 +497,21 @@ export default function ResumeBuilder({ initialContent }) {
               preview={resumeMode}
             />
           </div>
-          <div className="hidden">
-            <div id="resume-pdf">
-              <MDEditor.Markdown
-                source={previewContent}
-                style={{
-                  background: "white",
-                  color: "black",
-                }}
-              />
-            </div>
-          </div>
         </TabsContent>
       </Tabs>
+
+      {/* Hidden div for PDF generation - Always rendered outside tabs */}
+      <div className="hidden">
+        <div id="resume-pdf">
+          <MDEditor.Markdown
+            source={previewContent}
+            style={{
+              background: "white",
+              color: "black",
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

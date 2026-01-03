@@ -1,5 +1,7 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -32,6 +34,7 @@ import { updateUser } from "@/actions/user";
 
 const OnboardingForm = ({ industries }) => {
   const router = useRouter();
+  const { user } = useUser();
   const [selectedIndustry, setSelectedIndustry] = useState(null);
 
   const {
@@ -57,16 +60,19 @@ const OnboardingForm = ({ industries }) => {
         .replace(/ /g, "-")}`;
 
       await updateUserFn({
-        ...values,
-        industry: formattedIndustry,
-      });
+  ...values,
+  industry: formattedIndustry,
+  email: user?.primaryEmailAddress?.emailAddress,
+  name: user?.fullName,
+});
+
     } catch (error) {
       console.error("Onboarding error:", error);
     }
   };
 
   useEffect(() => {
-    if (updateResult?.success && !updateLoading) {
+    if (updateResult && !updateLoading) {
       toast.success("Profile completed successfully!");
       router.push("/dashboard");
       router.refresh();
