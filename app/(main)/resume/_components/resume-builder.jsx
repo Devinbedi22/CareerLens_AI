@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { saveResume } from "@/actions/resume";
+import { saveResume, matchResumeToJobDescription } from "@/actions/resume";
 import { EntryForm } from "./entry-form";
 import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/nextjs";
@@ -25,11 +25,32 @@ import { entriesToMarkdown } from "@/lib/helper";
 import { resumeSchema } from "@/lib/inngest/schema";
 import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
 
-export default function ResumeBuilder({ initialContent }) {
+export default function ResumeBuilder({ initialContent, resume }) {
   const [activeTab, setActiveTab] = useState("edit");
   const [previewContent, setPreviewContent] = useState(initialContent);
   const { user } = useUser();
   const [resumeMode, setResumeMode] = useState("preview");
+  const [pdfFile, setPdfFile] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [jobDescription, setJobDescription] = useState("");
+  const [scanResult, setScanResult] = useState(() => {
+    if (!resume) return null;
+    return {
+      atsScore: resume.atsScore ?? null,
+      missingKeywords: [],
+      strengths: [],
+      weaknesses: [],
+      suggestions: [],
+      feedback: resume.feedback ?? "",
+    };
+  });
+
+  const {
+    loading: isMatching,
+    fn: matchResumeFn,
+    data: matchResult,
+    error: matchError,
+  } = useFetch(matchResumeToJobDescription);
 
   const {
     control,
@@ -56,7 +77,6 @@ export default function ResumeBuilder({ initialContent }) {
     error: saveError,
   } = useFetch(saveResume);
 
-  // Watch form fields for preview updates
   const formValues = watch();
 
   useEffect(() => {
@@ -80,6 +100,71 @@ export default function ResumeBuilder({ initialContent }) {
       toast.error(saveError.message || "Failed to save resume");
     }
   }, [saveResult, saveError, isSaving]);
+
+  useEffect(() => {
+    if (resume) {
+      setScanResult({
+        atsScore: resume.atsScore ?? null,
+        missingKeywords: [],
+        strengths: [],
+        weaknesses: [],
+        suggestions: [],
+        feedback: resume.feedback ?? "",
+      });
+    }
+  }, [resume]);
+
+  const handlePdfFileChange = (event) => {
+    const file = event.target.files?.[0] ?? null;
+    setPdfFile(file && file.type === "application/pdf" ? file : null);
+  };
+
+  const analyzeResumeMatch = async () => {
+    if (!jobDescription.trim()) {
+      toast.error("Please paste a job description to analyze.");
+      return;
+    }
+
+    if (!previewContent?.trim()) {
+      toast.error("Please build or load a resume before analyzing match.");
+      return;
+    }
+
+    await matchResumeFn({ resumeText: previewContent, jobDescription });
+  };
+
+  const scanPdfResume = async () => {
+    if (!pdfFile) {
+      toast.error("Please select a PDF file to scan.");
+      return;
+    }
+
+    setIsScanning(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("pdf", pdfFile);
+
+      const response = await fetch("/api/resume/scan", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to scan the resume PDF");
+      }
+
+      setScanResult(result);
+      toast.success("ATS scan completed successfully!");
+    } catch (error) {
+      console.error("Resume scan failed:", error);
+      toast.error(error.message || "Resume scan failed");
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   const getContactMarkdown = () => {
     const { contactInfo } = formValues;
@@ -281,6 +366,230 @@ export default function ResumeBuilder({ initialContent }) {
           </Button>
         </div>
       </div>
+
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] items-end">
+        <div className="rounded-lg border bg-muted/50 p-4">
+          <label className="text-sm font-medium text-muted-foreground">
+            Upload PDF Resume
+          </label>
+          <Input
+            type="file"
+            accept="application/pdf"
+            onChange={handlePdfFileChange}
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            Upload a PDF to scan your resume for ATS keywords and formatting.
+          </p>
+        </div>
+
+        <Button
+          onClick={scanPdfResume}
+          disabled={!pdfFile || isScanning}
+          className="h-12"
+        >
+          {isScanning ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Scanning PDF...
+            </>
+          ) : (
+            "Scan PDF"
+          )}
+        </Button>
+      </div>
+
+      <div className="rounded-lg border bg-muted/50 p-4">
+        <label className="text-sm font-medium text-muted-foreground">
+          Job Description
+        </label>
+        <Textarea
+          value={jobDescription}
+          onChange={(event) => setJobDescription(event.target.value)}
+          className="h-40 mt-2"
+          placeholder="Paste the job description you want to compare against your resume..."
+        />
+        <p className="text-xs text-muted-foreground mt-2">
+          Use this to compare your resume content against a target job description.
+        </p>
+        <Button
+          onClick={analyzeResumeMatch}
+          className="mt-4 h-12"
+          disabled={isMatching || !jobDescription.trim()}
+        >
+          {isMatching ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Analyzing...
+            </>
+          ) : (
+            "Analyze Match"
+          )}
+        </Button>
+      </div>
+
+      {scanResult?.atsScore != null && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-lg border bg-muted/50 p-4">
+            <p className="text-sm font-semibold text-muted-foreground">
+              ATS Resume Score
+            </p>
+            <p className="mt-3 text-5xl font-bold">{scanResult.atsScore}</p>
+            {scanResult.feedback ? (
+              <p className="mt-4 text-sm text-muted-foreground">
+                {scanResult.feedback}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="rounded-lg border bg-muted/50 p-4">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Missing Keywords
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {scanResult.missingKeywords.length > 0 ? (
+                scanResult.missingKeywords.map((keyword, index) => (
+                  <span
+                    key={index}
+                    className="rounded-full border px-3 py-1 text-sm"
+                  >
+                    {keyword}
+                  </span>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No missing keywords detected.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border bg-muted/50 p-4">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Strengths
+            </p>
+            <ul className="mt-3 list-disc list-inside space-y-2 text-sm">
+              {scanResult.strengths.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-lg border bg-muted/50 p-4">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Weaknesses
+            </p>
+            <ul className="mt-3 list-disc list-inside space-y-2 text-sm">
+              {scanResult.weaknesses.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="md:col-span-2 rounded-lg border bg-muted/50 p-4">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Suggestions
+            </p>
+            <ul className="mt-3 list-disc list-inside space-y-2 text-sm">
+              {scanResult.suggestions.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {matchResult?.matchScore != null && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-lg border bg-muted/50 p-4">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Resume Match Score
+            </p>
+            <p className="mt-3 text-5xl font-bold">{matchResult.matchScore}%</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Keyword coverage: {matchResult.keywordCoverage}%
+            </p>
+          </div>
+
+          <div className="rounded-lg border bg-muted/50 p-4">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Matched Keywords
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {matchResult.matchedKeywords.length > 0 ? (
+                matchResult.matchedKeywords.map((keyword, index) => (
+                  <span
+                    key={index}
+                    className="rounded-full border px-3 py-1 text-sm"
+                  >
+                    {keyword}
+                  </span>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No matched keywords detected.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border bg-muted/50 p-4">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Missing Keywords
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {matchResult.missingKeywords.length > 0 ? (
+                matchResult.missingKeywords.map((keyword, index) => (
+                  <span
+                    key={index}
+                    className="rounded-full border px-3 py-1 text-sm"
+                  >
+                    {keyword}
+                  </span>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No missing keywords detected.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="md:col-span-2 grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <p className="text-sm font-semibold text-muted-foreground">
+                Strengths
+              </p>
+              <ul className="mt-3 list-disc list-inside space-y-2 text-sm">
+                {matchResult.strengths.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <p className="text-sm font-semibold text-muted-foreground">
+                Weaknesses
+              </p>
+              <ul className="mt-3 list-disc list-inside space-y-2 text-sm">
+                {matchResult.weaknesses.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <p className="text-sm font-semibold text-muted-foreground">
+                Recommendations
+              </p>
+              <ul className="mt-3 list-disc list-inside space-y-2 text-sm">
+                {matchResult.recommendations.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

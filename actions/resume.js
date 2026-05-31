@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getResumeMatchAnalysis } from "@/lib/resume-match";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const MAX_RESUME_LENGTH = 50000; // ~10-15 pages
@@ -186,6 +187,172 @@ export async function getResume() {
   return db.resume.findUnique({
     where: { userId: user.id },
   });
+}
+
+function validateJobMatchFeedback(feedback) {
+  if (
+    !feedback ||
+    !Array.isArray(feedback.strengths) ||
+    !Array.isArray(feedback.weaknesses) ||
+    !Array.isArray(feedback.recommendations)
+  ) {
+    throw new Error("Invalid job match feedback format from AI");
+  }
+
+  return feedback;
+}
+
+async function getJobMatchFeedback({ resumeText, jobDescription, matchScore, missingKeywords }) {
+  const prompt = `
+You are an expert career coach.
+
+Review the resume text, the job description, the computed match score, and the missing keywords below.
+
+Return ONLY valid JSON in this exact format:
+{
+  "strengths": [],
+  "weaknesses": [],
+  "recommendations": []
+}
+
+Do not compute the score. The score is already provided.
+
+Resume text:
+${resumeText.slice(0, 12000)}${resumeText.length > 12000 ? " ... (truncated)" : ""}
+
+Job description:
+${jobDescription.slice(0, 12000)}${jobDescription.length > 12000 ? " ... (truncated)" : ""}
+
+Match score: ${matchScore}
+Missing keywords: ${missingKeywords.join(", ")}
+`;
+
+  const responseText = await callGeminiWithRetry(prompt);
+  const cleanedText = responseText.replace(/```(?:json)?\n?/g, "").replace(/```/g, "").trim();
+  const feedback = JSON.parse(cleanedText);
+
+  return validateJobMatchFeedback(feedback);
+}
+
+export async function matchResumeToJobDescription({ resumeText, jobDescription }) {
+  const user = await getAuthenticatedUser();
+
+  if (!resumeText || typeof resumeText !== "string" || !resumeText.trim()) {
+    throw new Error("Resume text is required for match analysis");
+  }
+
+  if (!jobDescription || typeof jobDescription !== "string" || !jobDescription.trim()) {
+    throw new Error("Job description is required for match analysis");
+  }
+
+  const analysis = getResumeMatchAnalysis(resumeText, jobDescription);
+  const feedback = await getJobMatchFeedback({
+    resumeText,
+    jobDescription,
+    matchScore: analysis.matchScore,
+    missingKeywords: analysis.missingKeywords,
+  });
+
+  return {
+    ...analysis,
+    ...feedback,
+  };
+}
+
+function validateAtsAnalysis(analysis) {
+  if (
+    typeof analysis.atsScore !== "number" ||
+    !Array.isArray(analysis.missingKeywords) ||
+    !Array.isArray(analysis.strengths) ||
+    !Array.isArray(analysis.weaknesses) ||
+    !Array.isArray(analysis.suggestions)
+  ) {
+    throw new Error("Invalid ATS analysis format from AI");
+  }
+
+  if (analysis.atsScore < 0 || analysis.atsScore > 100) {
+    throw new Error("ATS score must be between 0 and 100");
+  }
+
+  return analysis;
+}
+
+export async function analyzeResumeText(text, industry) {
+  if (!text || typeof text !== "string" || !text.trim()) {
+    throw new Error("Resume text is required for ATS scanning");
+  }
+
+  if (!industry) {
+    throw new Error("Industry is required to analyze resume text");
+  }
+
+  const prompt = `
+Analyze this resume text for a ${industry} professional and return ONLY valid JSON with this exact shape:
+{
+  "atsScore": 0,
+  "missingKeywords": [],
+  "strengths": [],
+  "weaknesses": [],
+  "suggestions": []
+}
+
+Focus on:
+- ATS readability and keyword matching
+- missing industry keywords
+- resume strengths
+- resume weaknesses
+- actionable improvement suggestions
+
+Return EXACT JSON only. No markdown, no code fences, no explanations.
+
+Resume text:
+${text.slice(0, 12000)}${text.length > 12000 ? " ... (truncated)" : ""}
+`;
+
+  const responseText = await callGeminiWithRetry(prompt);
+  const cleaned = responseText.replace(/```(?:json)?\n?/g, "").replace(/```/g, "").trim();
+  const analysis = JSON.parse(cleaned);
+
+  validateAtsAnalysis(analysis);
+  return analysis;
+}
+
+export async function scanResumePdf(pdfText) {
+  const user = await getAuthenticatedUser();
+
+  const analysis = await analyzeResumeText(pdfText, user.industry);
+
+  const feedback = [
+    `Strengths: ${analysis.strengths.join(", ")}`,
+    `Weaknesses: ${analysis.weaknesses.join(", ")}`,
+    `Suggestions: ${analysis.suggestions.join(" | ")}`,
+  ].join("\n\n");
+
+  const resume = await db.resume.upsert({
+    where: { userId: user.id },
+    update: {
+      atsScore: analysis.atsScore,
+      feedback,
+      updatedAt: new Date(),
+    },
+    create: {
+      userId: user.id,
+      content: pdfText.slice(0, MAX_RESUME_LENGTH),
+      atsScore: analysis.atsScore,
+      feedback,
+    },
+  });
+
+  revalidatePath("/resume");
+
+  return {
+    atsScore: resume.atsScore,
+    missingKeywords: analysis.missingKeywords,
+    strengths: analysis.strengths,
+    weaknesses: analysis.weaknesses,
+    suggestions: analysis.suggestions,
+    feedback,
+  };
 }
 
 export async function improveWithAI({ current, type }) {

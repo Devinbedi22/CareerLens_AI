@@ -1,4 +1,4 @@
-import { getIndustryInsights } from "@/actions/dashboard";
+import { getIndustryInsights, getJobRecommendations } from "@/actions/dashboard";
 import DashboardView from "./_components/dashboard-view";
 import { getUserOnboardingStatus } from "@/actions/user";
 import { redirect } from "next/navigation";
@@ -13,10 +13,12 @@ export default async function DashboardPage() {
   }
 
   const insights = await getIndustryInsights();
+  const jobRecommendationResult = await getJobRecommendations();
+  const recommendations = jobRecommendationResult?.recommendedRoles ?? [];
 
   return (
     <div className="container mx-auto">
-      <DashboardView insights={insights} />
+      <DashboardView insights={insights} recommendations={recommendations} />
     </div>
   );
 }

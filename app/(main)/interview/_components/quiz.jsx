@@ -10,167 +10,260 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { generateQuiz, saveQuizResult } from "@/actions/interview";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  generateMockInterview,
+  evaluateMockInterviewAnswer,
+  saveMockInterviewSession,
+} from "@/actions/interview";
 import QuizResult from "./quiz-result";
 import useFetch from "@/hooks/use-fetch";
 import { BarLoader } from "react-spinners";
 
 export default function Quiz() {
+  const [questions, setQuestions] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answerText, setAnswerText] = useState("");
   const [answers, setAnswers] = useState([]);
-  const [showExplanation, setShowExplanation] = useState(false);
+  const [evaluations, setEvaluations] = useState([]);
+  const [showEvaluation, setShowEvaluation] = useState(false);
 
   const {
-    loading: generatingQuiz,
-    fn: generateQuizFn,
-    data: quizData,
-  } = useFetch(generateQuiz);
+    loading: loadingQuestions,
+    fn: generateInterviewFn,
+    data: generatedQuestions,
+    setData: setGeneratedQuestions,
+  } = useFetch(generateMockInterview);
 
   const {
-    loading: savingResult,
-    fn: saveQuizResultFn,
+    loading: evaluatingAnswer,
+    fn: evaluateAnswerFn,
+    data: evaluationData,
+  } = useFetch(evaluateMockInterviewAnswer);
+
+  const {
+    loading: savingSession,
+    fn: saveSessionFn,
     data: resultData,
     setData: setResultData,
-  } = useFetch(saveQuizResult);
+  } = useFetch(saveMockInterviewSession);
 
   useEffect(() => {
-    if (quizData) {
-      setAnswers(new Array(quizData.length).fill(null));
+    if (generatedQuestions) {
+      setQuestions(generatedQuestions);
+      setCurrentQuestion(0);
+      setAnswerText("");
+      setAnswers(new Array(generatedQuestions.length).fill(""));
+      setEvaluations(new Array(generatedQuestions.length).fill(null));
+      setShowEvaluation(false);
     }
-  }, [quizData]);
+  }, [generatedQuestions]);
 
-  const handleAnswer = (answer) => {
-    const newAnswers = [...answers];
-    newAnswers[currentQuestion] = answer;
-    setAnswers(newAnswers);
-  };
+  useEffect(() => {
+    if (!evaluationData || !questions) return;
 
-  const handleNext = () => {
-    if (currentQuestion < quizData.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setShowExplanation(false);
-    } else {
-      finishQuiz();
-    }
-  };
+    const updatedAnswers = [...answers];
+    updatedAnswers[currentQuestion] = answerText.trim();
+    setAnswers(updatedAnswers);
 
-  const calculateScore = () => {
-    let correct = 0;
-    answers.forEach((answer, index) => {
-      if (answer === quizData[index].correctAnswer) {
-        correct++;
-      }
-    });
-    return (correct / quizData.length) * 100;
-  };
+    const updatedEvaluations = [...evaluations];
+    updatedEvaluations[currentQuestion] = evaluationData;
+    setEvaluations(updatedEvaluations);
+    setShowEvaluation(true);
+  }, [evaluationData]);
 
-  const finishQuiz = async () => {
-    const score = calculateScore();
-    try {
-      await saveQuizResultFn(quizData, answers, score);
-      toast.success("Quiz completed!");
-    } catch (error) {
-      toast.error(error.message || "Failed to save quiz results");
-    }
-  };
-
-  const startNewQuiz = () => {
-    setCurrentQuestion(0);
-    setAnswers([]);
-    setShowExplanation(false);
-    generateQuizFn();
+  const startInterview = () => {
     setResultData(null);
+    setGeneratedQuestions(null);
+    setQuestions(null);
+    setAnswers([]);
+    setEvaluations([]);
+    setAnswerText("");
+    setShowEvaluation(false);
+    generateInterviewFn();
   };
 
-  if (generatingQuiz) {
-    return <BarLoader className="mt-4" width={"100%"} color="gray" />;
+  const handleSubmitAnswer = async () => {
+    if (!answerText.trim()) {
+      toast.error("Please enter your answer before submitting.");
+      return;
+    }
+
+    if (evaluations[currentQuestion]) {
+      return;
+    }
+
+    try {
+      await evaluateAnswerFn(questions[currentQuestion], answerText.trim());
+    } catch (error) {
+      console.error("Answer evaluation failed:", error);
+    }
+  };
+
+  const handleNextQuestion = async () => {
+    if (currentQuestion < questions.length - 1) {
+      const nextIndex = currentQuestion + 1;
+      setCurrentQuestion(nextIndex);
+      setAnswerText(answers[nextIndex] ?? "");
+      setShowEvaluation(false);
+      return;
+    }
+
+    await finishInterview();
+  };
+
+  const finishInterview = async () => {
+    const responseHistory = questions.map((question, index) => ({
+      question,
+      answer: answers[index] ?? "",
+      evaluation: evaluations[index],
+    }));
+
+    if (responseHistory.some((item) => !item.evaluation)) {
+      toast.error("Please submit answers for all questions before finishing.");
+      return;
+    }
+
+    try {
+      await saveSessionFn(questions, responseHistory);
+    } catch (error) {
+      console.error("Failed to save interview session:", error);
+    }
+  };
+
+  if (loadingQuestions) {
+    return <BarLoader className="mt-4" width="100%" color="gray" />;
   }
 
-  // Show results if quiz is completed
   if (resultData) {
     return (
       <div className="mx-2">
-        <QuizResult result={resultData} onStartNew={startNewQuiz} />
+        <QuizResult result={resultData} onStartNew={startInterview} />
       </div>
     );
   }
 
-  if (!quizData) {
+  if (!questions) {
     return (
       <Card className="mx-2">
         <CardHeader>
-          <CardTitle>Ready to test your knowledge?</CardTitle>
+          <CardTitle>Start Your Mock Interview</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            This quiz contains 10 questions specific to your industry and
-            skills. Take your time and choose the best answer for each question.
+            Practice 7 tailored interview questions generated from your profile,
+            resume, skills, and experience. Submit an answer and receive
+            immediate AI feedback.
           </p>
         </CardContent>
         <CardFooter>
-          <Button onClick={generateQuizFn} className="w-full">
-            Start Quiz
+          <Button onClick={startInterview} className="w-full">
+            Start Interview
           </Button>
         </CardFooter>
       </Card>
     );
   }
 
-  const question = quizData[currentQuestion];
+  const current = questions[currentQuestion];
+  const currentEvaluation = evaluations[currentQuestion];
+  const isAnswered = Boolean(currentEvaluation);
 
   return (
     <Card className="mx-2">
       <CardHeader>
-        <CardTitle>
-          Question {currentQuestion + 1} of {quizData.length}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-lg font-medium">{question.question}</p>
-        <RadioGroup
-          onValueChange={handleAnswer}
-          value={answers[currentQuestion]}
-          className="space-y-2"
-        >
-          {question.options.map((option, index) => (
-            <div key={index} className="flex items-center space-x-2">
-              <RadioGroupItem value={option} id={`option-${index}`} />
-              <Label htmlFor={`option-${index}`}>{option}</Label>
-            </div>
-          ))}
-        </RadioGroup>
-
-        {showExplanation && (
-          <div className="mt-4 p-4 bg-muted rounded-lg">
-            <p className="font-medium">Explanation:</p>
-            <p className="text-muted-foreground">{question.explanation}</p>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>
+              Question {currentQuestion + 1} of {questions.length}
+            </CardTitle>
+            <Badge variant="secondary">{current.category}</Badge>
           </div>
-        )}
+          <p className="text-muted-foreground">{current.question}</p>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <p className="font-medium">Your answer</p>
+          <Textarea
+            value={answerText}
+            onChange={(event) => setAnswerText(event.target.value)}
+            placeholder="Type your response here..."
+            disabled={isAnswered}
+            className="min-h-[180px]"
+          />
+        </div>
+
+        {isAnswered && currentEvaluation ? (
+          <div className="space-y-4 rounded-lg border bg-muted/50 p-4">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold">AI Evaluation</p>
+              <span className="text-sm text-muted-foreground">
+                Score: {currentEvaluation.score}
+              </span>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <p className="text-sm font-medium">Strengths</p>
+                <ul className="mt-2 list-disc list-inside text-sm">
+                  {currentEvaluation.strengths.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Weaknesses</p>
+                <ul className="mt-2 list-disc list-inside text-sm">
+                  {currentEvaluation.weaknesses.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Improvements</p>
+                <ul className="mt-2 list-disc list-inside text-sm">
+                  {currentEvaluation.improvements.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </CardContent>
-      <CardFooter className="flex justify-between">
-        {!showExplanation && (
-          <Button
-            onClick={() => setShowExplanation(true)}
-            variant="outline"
-            disabled={!answers[currentQuestion]}
-          >
-            Show Explanation
-          </Button>
-        )}
-        <Button
-          onClick={handleNext}
-          disabled={!answers[currentQuestion] || savingResult}
-          className="ml-auto"
-        >
-          {savingResult && (
-            <BarLoader className="mt-4" width={"100%"} color="gray" />
+
+      <CardFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {isAnswered
+              ? "Answer submitted. Move to the next question when ready."
+              : "Submit your answer to receive immediate feedback."}
+          </p>
+          {evaluatingAnswer && (
+            <BarLoader className="w-full" color="gray" />
           )}
-          {currentQuestion < quizData.length - 1
-            ? "Next Question"
-            : "Finish Quiz"}
-        </Button>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            onClick={handleSubmitAnswer}
+            disabled={isAnswered || evaluatingAnswer || savingSession}
+            variant="outline"
+          >
+            Submit Answer
+          </Button>
+          <Button
+            onClick={handleNextQuestion}
+            disabled={!isAnswered || savingSession}
+          >
+            {currentQuestion < questions.length - 1
+              ? "Next Question"
+              : "Finish Interview"}
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

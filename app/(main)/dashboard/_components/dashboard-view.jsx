@@ -28,7 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
-const DashboardView = ({ insights }) => {
+const DashboardView = ({ insights, recommendations = [] }) => {
   // Transform salary data for the chart
   const salaryData = insights.salaryRanges.map((range) => ({
     name: range.role,
@@ -181,6 +181,68 @@ const DashboardView = ({ insights }) => {
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Recommended Career Paths */}
+      <Card className="col-span-4">
+        <CardHeader>
+          <CardTitle>Recommended Career Paths</CardTitle>
+          <CardDescription>
+            Top role recommendations based on your resume and profile
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recommendations.length ? (
+            <div className="space-y-4">
+              {recommendations.map((role, index) => (
+                <div key={role.title} className="rounded-lg border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">{role.title}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Match score: {role.score.toFixed(0)}%
+                      </p>
+                    </div>
+                    <Badge variant="secondary">Top {index + 1}</Badge>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {role.explanation ? (
+                      <p className="text-sm text-muted-foreground">{role.explanation}</p>
+                    ) : null}
+                    {role.matchedSkills?.length ? (
+                      <div>
+                        <p className="text-sm font-medium">Matched Skills</p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {role.matchedSkills.map((skill) => (
+                            <Badge key={`${role.title}-${skill}`} variant="outline">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {role.missingSkills?.length ? (
+                      <div>
+                        <p className="text-sm font-medium">Skills to Improve</p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {role.missingSkills.map((skill) => (
+                            <Badge key={`${role.title}-missing-${skill}`} variant="destructive">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No recommendations are available yet. Make sure your profile and resume are up to date.
+            </p>
+          )}
         </CardContent>
       </Card>
 

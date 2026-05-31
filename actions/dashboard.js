@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getRoleRecommendations } from "@/lib/recommendation-engine";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const CACHE_DURATION_DAYS = 7;
@@ -54,6 +55,112 @@ function validateInsightsResponse(data) {
   }
 
   return true;
+}
+
+async function callGeminiWithRetry(prompt, maxRetries = 2) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = await response.text();
+
+      if (!text?.trim()) {
+        throw new Error("Empty response from AI");
+      }
+
+      return text.trim();
+    } catch (error) {
+      lastError = error;
+      console.error(`Gemini API attempt ${attempt + 1} failed:`, error.message);
+
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+      }
+    }
+  }
+
+  throw new Error(`AI service unavailable after ${maxRetries + 1} attempts: ${lastError?.message || 'unknown error'}`);
+}
+
+function validateRoleExplanations(data) {
+  if (!data || typeof data !== 'object' || !Array.isArray(data.recommendations)) {
+    throw new Error("Invalid role explanation format from AI");
+  }
+
+  return data.recommendations.every((item) =>
+    item?.title && typeof item.title === 'string' && item?.explanation && typeof item.explanation === 'string'
+  );
+}
+
+async function getJobRecommendationExplanations({ recommendations, resumeText, skills, profile }) {
+  const prompt = `
+You are a career coach. For each of the recommended roles below, explain why it was recommended, what skills are missing, and how the user can improve their suitability.
+
+User resume content:
+${resumeText.slice(0, 12000)}${resumeText.length > 12000 ? " ... (truncated)" : ""}
+
+User skills: ${Array.isArray(skills) ? skills.join(", ") : skills}
+User profile: ${profile || "N/A"}
+
+Recommended roles:
+${recommendations.map((role) => `- ${role.title}`).join("\n")}
+
+Return ONLY valid JSON in this exact format:
+{
+  "recommendations": [
+    {
+      "title": "Role Title",
+      "explanation": "..."
+    }
+  ]
+}
+`;
+
+  const text = await callGeminiWithRetry(prompt);
+  const cleanedText = text.replace(/```(?:json)?\n?/g, "").replace(/```/g, "").trim();
+  const parsed = JSON.parse(cleanedText);
+
+  if (!validateRoleExplanations(parsed)) {
+    throw new Error("Invalid role explanations from AI");
+  }
+
+  return parsed.recommendations.reduce((map, item) => {
+    map[item.title] = item.explanation;
+    return map;
+  }, {});
+}
+
+export async function getJobRecommendations() {
+  const user = await getAuthenticatedUser();
+  const resume = await db.resume.findUnique({ where: { userId: user.id } });
+
+  const recommendations = getRoleRecommendations({
+    resumeContent: resume?.content ?? "",
+    skills: user.skills ?? [],
+    experience: user.experience ?? 0,
+    profile: user.bio ?? "",
+  });
+
+  if (!recommendations.length) {
+    return { recommendedRoles: [] };
+  }
+
+  const explanations = await getJobRecommendationExplanations({
+    recommendations,
+    resumeText: resume?.content ?? "",
+    skills: user.skills ?? [],
+    profile: user.bio ?? "",
+  });
+
+  return {
+    recommendedRoles: recommendations.map((role) => ({
+      ...role,
+      explanation: explanations[role.title] ?? "",
+    })),
+  };
 }
 
 export async function generateAIInsights(industry) {
