@@ -87,31 +87,18 @@ export async function initializeVoiceInterview(companyId, difficulty, duration) 
   // Build personalization context
   const personalizationContext = await buildPersonalizationContext(user, db, difficulty);
 
-  // Generate the initial question
-  const initPrompt = `
-You are setting up an interview for ${profile.name}.
+  // The first question MUST always be the mandatory introduction opener.
+  // Per product rules the interview MUST begin with this question.
+  const initialQuestion = "Tell me about yourself.";
 
-Use this initial question as the starting point:
-"${profile.initialQuestionTemplate}"
-
-The candidate should be asked this question to begin. Return ONLY the question text, nothing else.
-`;
-
-  try {
-    const initialQuestion = await callGeminiWithRetry(initPrompt);
-    
-    return {
-      success: true,
-      initialQuestion: initialQuestion.trim(),
-      profile,
-      difficulty,
-      duration,
-      personalizationContext
-    };
-  } catch (error) {
-    console.error("Failed to initialize voice interview:", error);
-    throw error;
-  }
+  return {
+    success: true,
+    initialQuestion: initialQuestion,
+    profile,
+    difficulty,
+    duration,
+    personalizationContext
+  };
 }
 
 /**
@@ -122,7 +109,8 @@ export async function processVoiceResponse(
   companyId,
   userTranscript,
   conversationHistory,
-  difficulty
+  difficulty,
+  currentPhase = "INTRODUCTION"
 ) {
   const user = await getAuthenticatedUser();
 
@@ -155,7 +143,8 @@ export async function processVoiceResponse(
     profile,
     difficulty,
     personalizationContext,
-    updatedHistory
+    updatedHistory,
+    currentPhase
   );
 
   try {

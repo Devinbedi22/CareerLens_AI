@@ -60,10 +60,11 @@ export default function VoiceInterviewer() {
 
         if (response?.success) {
           initializeSession(companyId, difficulty, duration, response.personalizationContext);
-          updateSessionState({
-            currentQuestion: response.initialQuestion
-          });
-          addToHistory("ai", response.initialQuestion, { questionNum: 1 });
+            updateSessionState({
+              currentQuestion: response.initialQuestion
+            });
+            // Tag initial AI question as part of the INTRODUCTION phase
+            addToHistory("ai", response.initialQuestion, { questionNum: 1, phase: "INTRODUCTION" });
 
           // Speak the first question
           speechSynthesis.speak(response.initialQuestion);
@@ -109,7 +110,8 @@ export default function VoiceInterviewer() {
         sessionState.selectedCompany,
         userResponse,
         sessionState.conversationHistory,
-        sessionState.difficulty
+        sessionState.difficulty,
+        sessionState.currentPhase
       );
 
       if (response?.success) {
@@ -126,7 +128,8 @@ export default function VoiceInterviewer() {
         addToHistory("ai", nextQuestion, {
           isFollowUp: response.isFollowUp,
           reasoning: response.reasoning,
-          questionNum: questionCountRef.current + 1
+          questionNum: questionCountRef.current + 1,
+          phase: sessionState.currentPhase
         });
 
         // Check if we should end interview
@@ -138,6 +141,25 @@ export default function VoiceInterviewer() {
         } else {
           // Speak the next question
           speechSynthesis.speak(nextQuestion);
+        }
+        // Phase advancement heuristic: if both intro questions were asked and two user replies exist, move to RESUME
+        try {
+          const prevHistory = sessionState.conversationHistory || [];
+          const virtualHistory = [
+            ...prevHistory,
+            { role: "user", text: userResponse },
+            { role: "ai", text: nextQuestion }
+          ];
+
+          const aiIntroAsked = virtualHistory.some(m => m.role === "ai" && m.text.toLowerCase().includes("tell me about yourself"));
+          const aiResumeAsked = virtualHistory.some(m => m.role === "ai" && m.text.toLowerCase().includes("walk me through your resume"));
+          const userReplies = virtualHistory.filter(m => m.role === "user").length;
+
+          if (aiIntroAsked && aiResumeAsked && userReplies >= 2 && sessionState.currentPhase === "INTRODUCTION") {
+            updateSessionState({ currentPhase: "RESUME" });
+          }
+        } catch (e) {
+          // non-fatal
         }
       }
     } catch (error) {
