@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Mic } from "lucide-react";
 import {
   generateMockInterview,
   evaluateMockInterviewAnswer,
@@ -28,6 +29,11 @@ export default function Quiz() {
   const [answers, setAnswers] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
   const [showEvaluation, setShowEvaluation] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const recognitionRef = useRef(null);
+  const transcriptBaseRef = useRef("");
 
   const {
     loading: loadingQuestions,
@@ -73,7 +79,62 @@ export default function Quiz() {
     setShowEvaluation(true);
   }, [evaluationData]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      let interim = "";
+      let finalTranscript = transcriptBaseRef.current;
+
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interim += result[0].transcript;
+        }
+      }
+
+      transcriptBaseRef.current = finalTranscript;
+      setInterimTranscript(interim);
+      setAnswerText(`${finalTranscript}${interim}`);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      toast.error(`Voice input error: ${event.error}`);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      setInterimTranscript("");
+    };
+
+    recognitionRef.current = recognition;
+    setSpeechSupported(true);
+
+    return () => {
+      recognition.stop();
+    };
+  }, []);
+
   const startInterview = () => {
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
+    }
+
     setResultData(null);
     setGeneratedQuestions(null);
     setQuestions(null);
@@ -81,7 +142,41 @@ export default function Quiz() {
     setEvaluations([]);
     setAnswerText("");
     setShowEvaluation(false);
+    setIsRecording(false);
+    setInterimTranscript("");
     generateInterviewFn();
+  };
+
+  const startRecording = () => {
+    if (!recognitionRef.current || isRecording) return;
+
+    transcriptBaseRef.current = answerText;
+    setInterimTranscript("");
+
+    try {
+      recognitionRef.current.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Speech recognition start failed:", error);
+      toast.error("Unable to start voice input.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (!recognitionRef.current || !isRecording) return;
+
+    recognitionRef.current.stop();
+    setIsRecording(false);
+    setInterimTranscript("");
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+      return;
+    }
+
+    startRecording();
   };
 
   const handleSubmitAnswer = async () => {
@@ -94,6 +189,10 @@ export default function Quiz() {
       return;
     }
 
+    if (isRecording) {
+      stopRecording();
+    }
+
     try {
       await evaluateAnswerFn(questions[currentQuestion], answerText.trim());
     } catch (error) {
@@ -102,6 +201,10 @@ export default function Quiz() {
   };
 
   const handleNextQuestion = async () => {
+    if (isRecording) {
+      stopRecording();
+    }
+
     if (currentQuestion < questions.length - 1) {
       const nextIndex = currentQuestion + 1;
       setCurrentQuestion(nextIndex);
@@ -194,6 +297,32 @@ export default function Quiz() {
             disabled={isAnswered}
             className="min-h-[180px]"
           />
+        </div>
+
+        <div className="space-y-2">
+          {speechSupported ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                variant={isRecording ? "secondary" : "outline"}
+                onClick={toggleRecording}
+                disabled={isAnswered || evaluatingAnswer}
+                className="w-full sm:w-auto"
+              >
+                <Mic className="mr-2 h-4 w-4" />
+                {isRecording ? "Stop Recording" : "Voice Input"}
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                {isRecording
+                  ? "Listening... speak now."
+                  : "Use voice input to dictate your answer."}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Voice input is not supported by your browser.
+            </p>
+          )}
         </div>
 
         {isAnswered && currentEvaluation ? (

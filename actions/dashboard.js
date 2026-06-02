@@ -74,10 +74,17 @@ async function callGeminiWithRetry(prompt, maxRetries = 2) {
       return text.trim();
     } catch (error) {
       lastError = error;
-      console.error(`Gemini API attempt ${attempt + 1} failed:`, error.message);
+      // Log detailed server-side error for observability
+      console.error(`Gemini API attempt ${attempt + 1} failed:`, {
+        message: error?.message,
+        stack: error?.stack,
+        attempt: attempt + 1,
+      });
 
+      // Exponential backoff delays: 1s, 2s, 4s ...
       if (attempt < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+        const delayMs = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }
@@ -254,8 +261,15 @@ export async function getIndustryInsights() {
     return user.industryInsight;
   }
 
-  // Generate fresh insights
-  const insights = await generateAIInsights(user.industry);
+  // Generate fresh insights (with internal error handling so UI won't crash)
+  let insights;
+  try {
+    insights = await generateAIInsights(user.industry);
+  } catch (error) {
+    // Log server-side and return null so the page can render without AI insights
+    console.error("AI insights generation failed for user", user.id, error);
+    return null;
+  }
 
   // Update existing or create new
   if (user.industryInsight) {

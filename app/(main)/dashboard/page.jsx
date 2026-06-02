@@ -13,8 +13,16 @@ export default async function DashboardPage() {
   }
 
   const insights = await getIndustryInsights();
-  const jobRecommendationResult = await getJobRecommendations();
-  const recommendations = jobRecommendationResult?.recommendedRoles ?? [];
+  let recommendations = [];
+
+  try {
+    const jobRecommendationResult = await getJobRecommendations();
+    recommendations = jobRecommendationResult?.recommendedRoles ?? [];
+  } catch (error) {
+    console.error("Failed to load job recommendations:", error);
+    // keep recommendations as an empty array so the page can still render
+    recommendations = [];
+  }
 
   return (
     <div className="container mx-auto">

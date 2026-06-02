@@ -29,12 +29,27 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
 const DashboardView = ({ insights, recommendations = [] }) => {
+  const aiUnavailable = !insights;
+
+  // Provide safe defaults when AI insights are unavailable so the page can still render
+  const data = insights || {
+    salaryRanges: [],
+    growthRate: 0,
+    demandLevel: "UNKNOWN",
+    topSkills: [],
+    marketOutlook: "NEUTRAL",
+    keyTrends: [],
+    recommendedSkills: [],
+    lastUpdated: new Date().toISOString(),
+    nextUpdate: new Date().toISOString(),
+  };
+
   // Transform salary data for the chart
-  const salaryData = insights.salaryRanges.map((range) => ({
+  const salaryData = (data.salaryRanges || []).map((range) => ({
     name: range.role,
-    min: range.min / 1000,
-    max: range.max / 1000,
-    median: range.median / 1000,
+    min: (range.min || 0) / 1000,
+    max: (range.max || 0) / 1000,
+    median: (range.median || 0) / 1000,
   }));
 
   const getDemandLevelColor = (level) => {
@@ -63,18 +78,29 @@ const DashboardView = ({ insights, recommendations = [] }) => {
     }
   };
 
-  const OutlookIcon = getMarketOutlookInfo(insights.marketOutlook).icon;
-  const outlookColor = getMarketOutlookInfo(insights.marketOutlook).color;
+  const OutlookIcon = getMarketOutlookInfo(data.marketOutlook).icon;
+  const outlookColor = getMarketOutlookInfo(data.marketOutlook).color;
 
   // Format dates using date-fns
-  const lastUpdatedDate = format(new Date(insights.lastUpdated), "dd/MM/yyyy");
-  const nextUpdateDistance = formatDistanceToNow(
-    new Date(insights.nextUpdate),
-    { addSuffix: true }
-  );
+  const lastUpdatedDate = format(new Date(data.lastUpdated), "dd/MM/yyyy");
+  const nextUpdateDistance = formatDistanceToNow(new Date(data.nextUpdate), {
+    addSuffix: true,
+  });
 
   return (
     <div className="space-y-6">
+      {aiUnavailable ? (
+        <Card className="border-rose-400 bg-rose-50">
+          <CardHeader>
+            <CardTitle>AI insights temporarily unavailable</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-rose-700">
+              AI insights temporarily unavailable. Please try again later.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
       <div className="flex justify-between items-center">
         <Badge variant="outline">Last updated: {lastUpdatedDate}</Badge>
       </div>
@@ -89,7 +115,7 @@ const DashboardView = ({ insights, recommendations = [] }) => {
             <OutlookIcon className={`h-4 w-4 ${outlookColor}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{insights.marketOutlook}</div>
+            <div className="text-2xl font-bold">{data.marketOutlook}</div>
             <p className="text-xs text-muted-foreground">
               Next update {nextUpdateDistance}
             </p>
@@ -105,9 +131,9 @@ const DashboardView = ({ insights, recommendations = [] }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {insights.growthRate.toFixed(1)}%
+              {data.growthRate.toFixed(1)}%
             </div>
-            <Progress value={insights.growthRate} className="mt-2" />
+            <Progress value={data.growthRate} className="mt-2" />
           </CardContent>
         </Card>
 
@@ -117,12 +143,8 @@ const DashboardView = ({ insights, recommendations = [] }) => {
             <BriefcaseIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{insights.demandLevel}</div>
-            <div
-              className={`h-2 w-full rounded-full mt-2 ${getDemandLevelColor(
-                insights.demandLevel
-              )}`}
-            />
+            <div className="text-2xl font-bold">{data.demandLevel}</div>
+            <div className={`h-2 w-full rounded-full mt-2 ${getDemandLevelColor(data.demandLevel)}`} />
           </CardContent>
         </Card>
 
@@ -133,7 +155,7 @@ const DashboardView = ({ insights, recommendations = [] }) => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-1">
-              {insights.topSkills.map((skill) => (
+              {(data.topSkills || []).map((skill) => (
                 <Badge key={skill} variant="secondary">
                   {skill}
                 </Badge>
@@ -257,7 +279,7 @@ const DashboardView = ({ insights, recommendations = [] }) => {
           </CardHeader>
           <CardContent>
             <ul className="space-y-4">
-              {insights.keyTrends.map((trend, index) => (
+              {(data.keyTrends || []).map((trend, index) => (
                 <li key={index} className="flex items-start space-x-2">
                   <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
                   <span>{trend}</span>
@@ -274,7 +296,7 @@ const DashboardView = ({ insights, recommendations = [] }) => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {insights.recommendedSkills.map((skill) => (
+              {(data.recommendedSkills || []).map((skill) => (
                 <Badge key={skill} variant="outline">
                   {skill}
                 </Badge>

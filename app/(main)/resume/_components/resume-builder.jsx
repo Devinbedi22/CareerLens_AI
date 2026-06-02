@@ -157,6 +157,13 @@ export default function ResumeBuilder({ initialContent, resume }) {
       }
 
       setScanResult(result);
+      // If the API returned the extracted content, use it as the current preview
+      if (result.content && typeof result.content === "string" && result.content.trim()) {
+        setPreviewContent(result.content);
+        // switch to preview tab so users can see the uploaded resume
+        setActiveTab("preview");
+        setResumeMode("preview");
+      }
       toast.success("ATS scan completed successfully!");
     } catch (error) {
       console.error("Resume scan failed:", error);

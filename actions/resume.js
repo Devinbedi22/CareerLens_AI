@@ -352,6 +352,8 @@ export async function scanResumePdf(pdfText) {
     weaknesses: analysis.weaknesses,
     suggestions: analysis.suggestions,
     feedback,
+    // include the extracted resume content so the frontend can use it immediately
+    content: resume.content,
   };
 }
 
