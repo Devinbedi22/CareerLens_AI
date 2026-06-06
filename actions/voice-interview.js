@@ -40,7 +40,7 @@ async function callGeminiWithRetry(prompt, maxRetries = 3) {
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      const text = response.text();
+      const text = await response.text();
 
       if (!text?.trim()) {
         throw new Error("Empty response from Gemini");

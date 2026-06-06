@@ -167,7 +167,7 @@ Rules:
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text().trim();
+    const text = (await response.text()).trim();
 
     if (!text) {
       throw new Error("Empty response from AI");
@@ -230,7 +230,7 @@ Use a score between 0 and 100. Keep strengths, weaknesses, and improvements conc
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text().trim();
+    const text = (await response.text()).trim();
 
     if (!text) {
       throw new Error("Empty response from AI");
@@ -404,7 +404,7 @@ CRITICAL RULES:
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
+    const text = await response.text();
 
     if (!text?.trim()) {
       throw new Error("Empty response from AI");
@@ -495,7 +495,7 @@ Provide ONE concise improvement tip (maximum 2 sentences):
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const tipResult = await model.generateContent(improvementPrompt);
       const tipResponse = await tipResult.response;
-      improvementTip = tipResponse.text().trim();
+      improvementTip = (await tipResponse.text()).trim();
     } catch (err) {
       console.error("Error generating improvement tip:", err);
       improvementTip = "Keep practicing! Review the explanations for questions you missed and focus on those topics.";

@@ -81,7 +81,7 @@ Return ONLY the cover letter in markdown format. No explanations.
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const content = response.text().trim();
+    const content = (await response.text()).trim();
 
     if (!content) {
       throw new Error("Empty response from AI");
