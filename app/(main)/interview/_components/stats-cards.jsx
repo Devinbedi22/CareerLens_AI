@@ -18,10 +18,11 @@ export default function StatsCards({ assessments }) {
 
   const getTotalQuestions = () => {
     if (!assessments?.length) return 0;
-    return assessments.reduce(
-      (sum, assessment) => sum + assessment.questions.length,
-      0
-    );
+    return assessments.reduce((sum, assessment) => {
+      // guard in case individual assessment has no questions array
+      const qLen = assessment?.questions ? assessment.questions.length : 0;
+      return sum + qLen;
+    }, 0);
   };
 
   return (
@@ -59,7 +60,11 @@ export default function StatsCards({ assessments }) {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {getLatestAssessment()?.quizScore.toFixed(1) || 0}%
+            {(() => {
+              const latest = getLatestAssessment();
+              const score = latest && latest.quizScore != null ? latest.quizScore.toFixed(1) : 0;
+              return `${score}%`;
+            })()}
           </div>
           <p className="text-xs text-muted-foreground">Most recent quiz</p>
         </CardContent>

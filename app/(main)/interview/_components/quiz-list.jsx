@@ -53,8 +53,8 @@ export default function QuizList({ assessments }) {
                   <CardTitle className="gradient-title text-2xl">
                     Quiz {i + 1}
                   </CardTitle>
-                  <CardDescription className="flex justify-between w-full">
-                    <div>Score: {assessment.quizScore.toFixed(1)}%</div>
+                    <CardDescription className="flex justify-between w-full">
+                    <div>Score: {(assessment.quizScore != null ? assessment.quizScore : 0).toFixed(1)}%</div>
                     <div>
                       {format(
                         new Date(assessment.createdAt),
