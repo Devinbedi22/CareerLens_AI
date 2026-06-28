@@ -2,10 +2,9 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateText } from "@/lib/genai";
 import { getRoleRecommendations } from "@/lib/recommendation-engine";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const CACHE_DURATION_DAYS = 7;
 
 async function getAuthenticatedUser() {
@@ -62,10 +61,7 @@ async function callGeminiWithRetry(prompt, maxRetries = 2) {
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = await response.text();
+      const text = await generateText(prompt, "gemini-2.5-flash");
 
       if (!text?.trim()) {
         throw new Error("Empty response from AI");
@@ -212,22 +208,17 @@ CRITICAL RULES:
 `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = await response.text();
+    const text = await generateText(prompt, "gemini-2.5-flash");
 
-    // Clean and parse JSON
     const cleanedText = text
       .replace(/```(?:json)?\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
-    
+
     const parsed = JSON.parse(cleanedText);
-    
-    // Validate structure
+
     validateInsightsResponse(parsed);
-    
+
     return parsed;
   } catch (error) {
     console.error("Error generating AI insights:", error);

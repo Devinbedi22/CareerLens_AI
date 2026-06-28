@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateText } from "@/lib/genai";
 import {
   buildPersonalizationContext,
   buildInterviewerSystemPrompt,
@@ -10,8 +10,6 @@ import {
   validateVoiceSessionResponse,
   parseGeminiEvaluation
 } from "@/lib/voice-interview-utils";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 /**
  * Get authenticated user
@@ -37,10 +35,7 @@ async function callGeminiWithRetry(prompt, maxRetries = 3) {
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = await response.text();
+      const text = await generateText(prompt, "gemini-2.5-flash");
 
       if (!text?.trim()) {
         throw new Error("Empty response from Gemini");

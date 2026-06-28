@@ -31,7 +31,7 @@ CareerLensAI is a Next.js 15 App Router application providing AI-powered career 
 - Interview quizzes and voice interview simulation
 - Industry insights refreshed via scheduled jobs
 
-Core technologies: Next.js (App Router), React 19, Clerk (auth), Prisma (Postgres), Google Gemini (@google/generative-ai), Inngest (workflows), pdf-parse, Tailwind CSS.
+Core technologies: Next.js (App Router), React 19, Clerk (auth), Prisma (Postgres), Google Gemini (@google/genai`), Inngest (workflows), pdf-parse, Tailwind CSS.
 
 ---
 
@@ -55,7 +55,7 @@ flowchart LR
 Explanation:
 - The frontend imports server actions (files in `actions/`) to perform business logic server-side.
 - Authentication handled by Clerk; server-side id from `@clerk/nextjs/server` is used to map to a `User` record in Postgres via Prisma.
-- AI calls are made to Gemini through `@google/generative-ai` wrappers in server actions.
+- AI calls are made to Gemini through `@google/genai` wrappers in server actions, authenticated with `GEMINI_API_KEY`.
 - Inngest performs scheduled industry-insight generation and writes back to the database.
 
 ---
@@ -257,7 +257,7 @@ Key files:
 Required environment variables (minimum):
 - `DATABASE_URL` — Postgres connection string (Prisma).
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` — Clerk.
-- `GEMINI_API_KEY` — Google Gemini key used by `@google/generative-ai`.
+- `GEMINI_API_KEY` — Google Gemini key used by `@google/genai`.
 - Clerk redirect URLs: `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL`.
 
 Optional/operational variables depending on deployment (Inngest keys, regions, etc.) should be checked in `lib/inngest/client.js` and Inngest dashboard.

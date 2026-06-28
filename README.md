@@ -55,7 +55,7 @@ CareerLensAI is a modern AI-powered career assistance platform built with Next.j
 - AI dashboard recommendations and insight creation in `actions/dashboard.js`
 - Resume editing and job match analysis in `actions/resume.js`
 - Resume PDF text extraction using `pdf-parse`
-- Google Gemini integration via `@google/generative-ai`
+- Google Gemini integration via `@google/genai` using `GEMINI_API_KEY`
 
 ## 🧪 Tech stack
 
@@ -64,7 +64,7 @@ CareerLensAI is a modern AI-powered career assistance platform built with Next.j
 - `tailwindcss`
 - `prisma` + `@prisma/client`
 - `@clerk/nextjs` for authentication
-- `@google/generative-ai` for Gemini
+- `@google/genai` for Gemini with `GEMINI_API_KEY`
 - `inngest` for scheduled workflow orchestration
 - `pdf-parse` for resume PDF parsing
 - `recharts` for analytics visualizations

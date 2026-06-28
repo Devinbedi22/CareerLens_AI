@@ -2,9 +2,8 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateText } from "@/lib/genai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const DAILY_LIMIT = 10;
 
 async function getAuthenticatedUser() {
@@ -78,15 +77,11 @@ Return ONLY the cover letter in markdown format. No explanations.
   });
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const content = (await response.text()).trim();
+      const content = await generateText(prompt, "gemini-2.5-flash");
 
-    if (!content) {
-      throw new Error("Empty response from AI");
-    }
-
+      if (!content) {
+        throw new Error("Empty response from AI");
+      }
     // Update with generated content
     return await db.coverLetter.update({
       where: { id: coverLetter.id },

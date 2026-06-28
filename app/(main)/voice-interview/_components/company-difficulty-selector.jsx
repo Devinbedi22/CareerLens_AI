@@ -31,10 +31,10 @@ export default function CompanyDifficultySelector({ onStart, isLoading }) {
           {profiles.map((profile) => (
             <Card
               key={profile.id}
-              className={`cursor-pointer transition-all ${
+              className={`cursor-pointer transition-all shadow-sm ${
                 selectedCompany?.id === profile.id
-                  ? "border-blue-500 bg-blue-50 border-2"
-                  : "hover:border-gray-400"
+                  ? "border-blue-500 border-2 bg-blue-950/40 ring-2 ring-blue-500/50 text-white"
+                  : "hover:border-white/20 hover:bg-slate-900/60"
               }`}
               onClick={() => setSelectedCompany(profile)}
             >
@@ -47,7 +47,11 @@ export default function CompanyDifficultySelector({ onStart, isLoading }) {
                   <p className="text-sm font-medium mb-2">Focus Areas:</p>
                   <div className="flex flex-wrap gap-1">
                     {profile.focusAreas.slice(0, 3).map((area) => (
-                      <Badge key={area} variant="outline" className="text-xs">
+                      <Badge
+                        key={area}
+                        variant="outline"
+                        className={`text-xs ${selectedCompany?.id === profile.id ? "text-white" : ""}`}
+                      >
                         {area}
                       </Badge>
                     ))}
@@ -74,11 +78,18 @@ export default function CompanyDifficultySelector({ onStart, isLoading }) {
         <h3 className="text-xl font-bold mb-4">Interview Difficulty</h3>
         <RadioGroup value={difficulty} onValueChange={setDifficulty} className="space-y-3">
           {Object.values(DIFFICULTY_SETTINGS).map((setting) => (
-            <div key={setting.level} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+            <div
+              key={setting.level}
+              className={`flex items-start space-x-3 p-3 border rounded-lg transition-all duration-150 ${
+                difficulty === setting.level
+                  ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/50 text-white"
+                  : "hover:bg-slate-900/60"
+              }`}
+            >
               <RadioGroupItem value={setting.level} id={`difficulty-${setting.level}`} />
               <Label htmlFor={`difficulty-${setting.level}`} className="flex-1 cursor-pointer">
-                <p className="font-medium">{setting.level}</p>
-                <p className="text-sm text-muted-foreground">{setting.questionComplexity}</p>
+                <p className={`font-medium ${difficulty === setting.level ? "text-white" : "text-slate-200"}`}>{setting.level}</p>
+                <p className={`${difficulty === setting.level ? "text-slate-300" : "text-muted-foreground text-sm"}`}>{setting.questionComplexity}</p>
               </Label>
             </div>
           ))}
@@ -94,11 +105,18 @@ export default function CompanyDifficultySelector({ onStart, isLoading }) {
           className="space-y-3"
         >
           {DURATION_OPTIONS.map((min) => (
-            <div key={min} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+            <div
+              key={min}
+              className={`flex items-center space-x-3 p-3 border rounded-lg transition-all duration-150 ${
+                duration === min
+                  ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/50 text-white"
+                  : "hover:bg-slate-900/60"
+              }`}
+            >
               <RadioGroupItem value={min.toString()} id={`duration-${min}`} />
               <Label htmlFor={`duration-${min}`} className="flex-1 cursor-pointer">
-                <p className="font-medium">{min} minutes</p>
-                <p className="text-sm text-muted-foreground">
+                <p className={`font-medium ${duration === min ? "text-white" : "text-slate-200"}`}>{min} minutes</p>
+                <p className={`${duration === min ? "text-slate-300" : "text-muted-foreground text-sm"}`}>
                   ~{Math.ceil((min / 5))} questions
                 </p>
               </Label>

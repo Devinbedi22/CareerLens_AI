@@ -2,9 +2,8 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateText } from "@/lib/genai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const DAILY_QUIZ_LIMIT = 5;
 
 async function getAuthenticatedUser() {
@@ -164,10 +163,7 @@ Rules:
 `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = (await response.text()).trim();
+    const text = await generateText(prompt, "gemini-2.5-flash");
 
     if (!text) {
       throw new Error("Empty response from AI");
@@ -227,10 +223,7 @@ Use a score between 0 and 100. Keep strengths, weaknesses, and improvements conc
 `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = (await response.text()).trim();
+    const text = await generateText(prompt, "gemini-2.5-flash");
 
     if (!text) {
       throw new Error("Empty response from AI");
@@ -401,10 +394,7 @@ CRITICAL RULES:
 `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = await response.text();
+const text = await generateText(prompt, "gemini-2.5-flash");
 
     if (!text?.trim()) {
       throw new Error("Empty response from AI");
@@ -492,10 +482,7 @@ Provide ONE concise improvement tip (maximum 2 sentences):
 `;
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const tipResult = await model.generateContent(improvementPrompt);
-      const tipResponse = await tipResult.response;
-      improvementTip = (await tipResponse.text()).trim();
+      improvementTip = (await generateText(improvementPrompt, "gemini-2.5-flash")).trim();
     } catch (err) {
       console.error("Error generating improvement tip:", err);
       improvementTip = "Keep practicing! Review the explanations for questions you missed and focus on those topics.";
