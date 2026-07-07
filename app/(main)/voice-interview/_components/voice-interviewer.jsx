@@ -46,6 +46,8 @@ export default function VoiceInterviewer() {
   const questionCountRef = useRef(0);
   const maxQuestionsRef = useRef(8);
   const hasStartedRef = useRef(false);
+  const isInterviewEndingRef = useRef(false);
+  const autoCompleteTimeoutRef = useRef(null);
 
   /**
    * Start interview - initialize with company and difficulty
@@ -55,6 +57,12 @@ export default function VoiceInterviewer() {
       try {
         questionCountRef.current = 0;
         maxQuestionsRef.current = Math.ceil((duration / 5)); // ~1 question per 5 minutes
+        isInterviewEndingRef.current = false;
+
+        if (autoCompleteTimeoutRef.current) {
+          clearTimeout(autoCompleteTimeoutRef.current);
+          autoCompleteTimeoutRef.current = null;
+        }
 
         const response = await initializeInterviewFn(companyId, difficulty, duration);
 
@@ -86,7 +94,7 @@ export default function VoiceInterviewer() {
   const handleAISpeechEnd = useCallback(() => {
     const permissionDenied = voiceRecognition.error === "not-allowed" || voiceRecognition.error === "service-not-allowed";
 
-    if (sessionState.status === "in_progress" && !permissionDenied) {
+    if (sessionState.status === "in_progress" && !isInterviewEndingRef.current && !permissionDenied) {
       voiceRecognition.resetTranscript();
       void voiceRecognition.startListening();
     }
@@ -98,7 +106,7 @@ export default function VoiceInterviewer() {
   const handleUserSpeechEnd = useCallback(async () => {
     const permissionDenied = voiceRecognition.error === "not-allowed" || voiceRecognition.error === "service-not-allowed";
 
-    if (permissionDenied) {
+    if (isInterviewEndingRef.current || permissionDenied) {
       return;
     }
 
@@ -122,6 +130,10 @@ export default function VoiceInterviewer() {
         sessionState.currentPhase
       );
 
+      if (isInterviewEndingRef.current) {
+        return;
+      }
+
       if (response?.success) {
         questionCountRef.current++;
         const nextQuestion = response.nextQuestion;
@@ -142,9 +154,13 @@ export default function VoiceInterviewer() {
 
         // Check if we should end interview
         if (questionCountRef.current >= maxQuestionsRef.current) {
-          // Give user a moment before ending
-          setTimeout(() => {
-            handleEndInterview();
+          if (autoCompleteTimeoutRef.current) {
+            clearTimeout(autoCompleteTimeoutRef.current);
+          }
+
+          autoCompleteTimeoutRef.current = setTimeout(() => {
+            autoCompleteTimeoutRef.current = null;
+            void handleEndInterview();
           }, 2000);
         } else {
           // Speak the next question
@@ -171,6 +187,10 @@ export default function VoiceInterviewer() {
         }
       }
     } catch (error) {
+      if (isInterviewEndingRef.current) {
+        return;
+      }
+
       console.error("Failed to process voice response:", error);
       toast.error("Failed to process response. Trying again...");
       void voiceRecognition.startListening();
@@ -190,11 +210,28 @@ export default function VoiceInterviewer() {
   /**
    * End interview and generate evaluation
    */
-  const handleEndInterview = useCallback(async () => {
+  const handleEndInterview = useCallback(async (options = {}) => {
+    const { isUserCancelled = false } = options;
+
     if (sessionState.status !== "in_progress") return;
 
+    isInterviewEndingRef.current = true;
+
+    if (autoCompleteTimeoutRef.current) {
+      clearTimeout(autoCompleteTimeoutRef.current);
+      autoCompleteTimeoutRef.current = null;
+    }
+
+    speechSynthesis.setOnEnd(null);
+    voiceRecognition.setOnSpeechEnd(null);
     speechSynthesis.stop();
     voiceRecognition.stopListening();
+
+    if (isUserCancelled) {
+      resetSession();
+      toast.success("Interview ended successfully.");
+      return;
+    }
 
     try {
       updateSessionState({ isProcessing: true });
@@ -225,6 +262,8 @@ export default function VoiceInterviewer() {
       console.error("Failed to end interview:", error);
       toast.error("Error completing interview. Please try again.");
       updateSessionState({ isProcessing: false });
+    } finally {
+      isInterviewEndingRef.current = false;
     }
   }, [
     sessionState.status,
@@ -236,7 +275,8 @@ export default function VoiceInterviewer() {
     completeSession,
     updateSessionState,
     speechSynthesis,
-    voiceRecognition
+    voiceRecognition,
+    resetSession
   ]);
 
   /**
@@ -286,7 +326,7 @@ export default function VoiceInterviewer() {
           isProcessing={sessionState.isProcessing}
           conversationHistory={sessionState.conversationHistory}
           questionCount={sessionState.questionCount}
-          onEndInterview={handleEndInterview}
+          onEndInterview={() => handleEndInterview({ isUserCancelled: true })}
         />
       </div>
     );

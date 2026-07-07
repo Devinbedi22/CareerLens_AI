@@ -21,6 +21,7 @@ export function useVoiceRecognition() {
   const onSpeechEndRef = useRef(null);
   const permissionDeniedRef = useRef(false);
   const permissionErrorToastIdRef = useRef(null);
+  const suppressEndCallbackRef = useRef(false);
 
   const dismissPermissionErrorToast = useCallback(() => {
     if (permissionErrorToastIdRef.current) {
@@ -128,6 +129,13 @@ export function useVoiceRecognition() {
     };
 
     recognition.onend = () => {
+      if (suppressEndCallbackRef.current) {
+        suppressEndCallbackRef.current = false;
+        setIsListening(false);
+        setInterimTranscript("");
+        return;
+      }
+
       setIsListening(false);
       setInterimTranscript("");
       if (!permissionDeniedRef.current && onSpeechEndRef.current) {
@@ -177,6 +185,7 @@ export function useVoiceRecognition() {
 
     try {
       permissionDeniedRef.current = false;
+      suppressEndCallbackRef.current = false;
       dismissPermissionErrorToast();
       setTranscript("");
       setInterimTranscript("");
@@ -196,14 +205,17 @@ export function useVoiceRecognition() {
   }, [checkMicrophonePermission, dismissPermissionErrorToast, isListening]);
 
   const stopListening = useCallback(() => {
-    if (!recognitionRef.current || !isListening) return;
+    if (!recognitionRef.current) return;
 
+    suppressEndCallbackRef.current = true;
     try {
       recognitionRef.current.stop();
+      setIsListening(false);
+      setInterimTranscript("");
     } catch (err) {
       console.error("Failed to stop listening:", err);
     }
-  }, [isListening]);
+  }, []);
 
   const resetTranscript = useCallback(() => {
     setTranscript("");
