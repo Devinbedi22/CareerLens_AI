@@ -19,6 +19,54 @@ export function useVoiceRecognition() {
   const lastResultTimeRef = useRef(null);
   const silenceCheckIntervalRef = useRef(null);
   const onSpeechEndRef = useRef(null);
+  const permissionDeniedRef = useRef(false);
+  const permissionErrorToastIdRef = useRef(null);
+
+  const dismissPermissionErrorToast = useCallback(() => {
+    if (permissionErrorToastIdRef.current) {
+      toast.dismiss(permissionErrorToastIdRef.current);
+      permissionErrorToastIdRef.current = null;
+    }
+  }, []);
+
+  const handlePermissionDenied = useCallback(() => {
+    permissionDeniedRef.current = true;
+    setIsListening(false);
+    setInterimTranscript("");
+    setError("not-allowed");
+
+    if (!permissionErrorToastIdRef.current) {
+      permissionErrorToastIdRef.current = toast.error(
+        "Microphone permission denied. Please enable microphone access and try again.",
+        { id: "voice-permission-denied" }
+      );
+    }
+
+    try {
+      recognitionRef.current?.stop();
+    } catch (err) {
+      console.error("Failed to stop recognition after permission denial:", err);
+    }
+  }, []);
+
+  const checkMicrophonePermission = useCallback(async () => {
+    if (typeof window === "undefined" || !navigator?.permissions?.query) {
+      return true;
+    }
+
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: "microphone" });
+      if (permissionStatus.state === "denied") {
+        handlePermissionDenied();
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.warn("Unable to check microphone permission:", err);
+      return true;
+    }
+  }, [handlePermissionDenied]);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -68,7 +116,12 @@ export function useVoiceRecognition() {
     recognition.onerror = (event) => {
       console.error("Speech recognition error:", event.error);
       setError(event.error);
-      
+
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        handlePermissionDenied();
+        return;
+      }
+
       if (event.error !== "no-speech") {
         toast.error(`Voice input error: ${event.error}`);
       }
@@ -77,7 +130,7 @@ export function useVoiceRecognition() {
     recognition.onend = () => {
       setIsListening(false);
       setInterimTranscript("");
-      if (onSpeechEndRef.current) {
+      if (!permissionDeniedRef.current && onSpeechEndRef.current) {
         onSpeechEndRef.current();
       }
     };
@@ -119,20 +172,28 @@ export function useVoiceRecognition() {
     };
   }, [isListening, transcript]);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     if (!recognitionRef.current || isListening) return;
 
     try {
+      permissionDeniedRef.current = false;
+      dismissPermissionErrorToast();
       setTranscript("");
       setInterimTranscript("");
       setError(null);
       lastResultTimeRef.current = Date.now();
+
+      const permissionAllowed = await checkMicrophonePermission();
+      if (!permissionAllowed) {
+        return;
+      }
+
       recognitionRef.current.start();
     } catch (err) {
       console.error("Failed to start listening:", err);
       toast.error("Failed to start voice input");
     }
-  }, [isListening]);
+  }, [checkMicrophonePermission, dismissPermissionErrorToast, isListening]);
 
   const stopListening = useCallback(() => {
     if (!recognitionRef.current || !isListening) return;

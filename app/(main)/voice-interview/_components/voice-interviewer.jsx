@@ -84,9 +84,11 @@ export default function VoiceInterviewer() {
    * Handle end of AI speech - start listening
    */
   const handleAISpeechEnd = useCallback(() => {
-    if (sessionState.status === "in_progress") {
+    const permissionDenied = voiceRecognition.error === "not-allowed" || voiceRecognition.error === "service-not-allowed";
+
+    if (sessionState.status === "in_progress" && !permissionDenied) {
       voiceRecognition.resetTranscript();
-      voiceRecognition.startListening();
+      void voiceRecognition.startListening();
     }
   }, [sessionState.status, voiceRecognition]);
 
@@ -94,9 +96,15 @@ export default function VoiceInterviewer() {
    * Handle end of user speech - process response
    */
   const handleUserSpeechEnd = useCallback(async () => {
+    const permissionDenied = voiceRecognition.error === "not-allowed" || voiceRecognition.error === "service-not-allowed";
+
+    if (permissionDenied) {
+      return;
+    }
+
     if (!voiceRecognition.transcript.trim()) {
       toast.error("Please speak something before submitting");
-      voiceRecognition.startListening();
+      void voiceRecognition.startListening();
       return;
     }
 
@@ -165,7 +173,7 @@ export default function VoiceInterviewer() {
     } catch (error) {
       console.error("Failed to process voice response:", error);
       toast.error("Failed to process response. Trying again...");
-      voiceRecognition.startListening();
+      void voiceRecognition.startListening();
       updateSessionState({ isProcessing: false });
     }
   }, [
