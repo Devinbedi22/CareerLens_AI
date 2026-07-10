@@ -11,12 +11,12 @@ export default async function InterviewPrepPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-6xl font-bold gradient-title">
+      <div className="mb-5 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+        <h1 className="max-w-full text-4xl font-bold leading-tight gradient-title sm:text-5xl md:text-6xl">
           Interview Preparation
         </h1>
-        <Link href="/voice-interview">
-          <Button size="lg" className="gap-2">
+        <Link href="/voice-interview" className="w-full md:w-auto">
+          <Button size="lg" className="w-full gap-2 md:w-auto">
             <Mic className="h-4 w-4" />
             AI Voice Interview
           </Button>
