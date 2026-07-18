@@ -52,7 +52,7 @@ export default function RoadmapSection() {
             </div>
             <div>
               <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">A structured path for any career.</h2>
-              <p className="mt-4 text-slate-300">CareerLens creates personalized roadmaps with clear milestones, skill recommendations, and realistic timelines for your chosen career path.</p>
+              <p className="mt-4 text-slate-300">NextStep AI creates personalized roadmaps with clear milestones, skill recommendations, and realistic timelines for your chosen career path.</p>
             </div>
             <div className="grid gap-4">
               {steps.map((step, index) => {

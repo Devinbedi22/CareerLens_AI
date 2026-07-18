@@ -1,6 +1,6 @@
-# CareerLensAI
+# NextStep AI
 
-CareerLensAI is a modern AI-powered career assistance platform built with Next.js. It delivers personalized resume building, cover letter generation, interview preparation, and industry insights through a mix of server-side AI workflows, authenticated user sessions, and database-backed user profiles.
+NextStep AI is a modern AI-powered career guidance platform built with Next.js. It delivers personalized resume building, cover letter generation, interview preparation, and industry insights through a mix of server-side AI workflows, authenticated user sessions, and database-backed user profiles.
 
 ## 🚀 What this project does
 

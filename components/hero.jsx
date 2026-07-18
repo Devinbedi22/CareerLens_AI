@@ -30,7 +30,7 @@ export default function HeroSection() {
               Build your career roadmap across any industry.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
-              CareerLens generates personalized roadmaps for Software Engineering, Data Science, Product Management, and more—showing you the exact skills, milestones, and timeline that matter.
+              NextStep AI generates personalized roadmaps for Software Engineering, Data Science, Product Management, and more—showing you the exact skills, milestones, and timeline that matter.
             </p>
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
               <Link href="/dashboard">

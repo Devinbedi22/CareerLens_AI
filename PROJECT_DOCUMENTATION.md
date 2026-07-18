@@ -1,4 +1,4 @@
-# CareerLensAI — Project Documentation
+# NextStep AI — Project Documentation
 
 This document provides a comprehensive reference for developers new to the project. It describes architecture, authentication, database schema, API routes, server-side AI workflows, background jobs, utilities, hooks, UI components, configuration, and developer workflows.
 
@@ -24,7 +24,7 @@ This document provides a comprehensive reference for developers new to the proje
 
 ## Overview
 
-CareerLensAI is a Next.js 15 App Router application providing AI-powered career tools:
+NextStep AI is a Next.js 15 App Router application providing AI-powered career tools:
 - Resume builder and ATS analysis
 - AI-generated cover letters
 - Job role recommendations

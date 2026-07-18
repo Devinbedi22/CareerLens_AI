@@ -29,7 +29,7 @@ export default function IndustryInsights() {
           <div className="space-y-4">
             <p className="text-sm uppercase tracking-[0.35em] text-cyan-300/80">Career Trends</p>
             <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Explore growing career domains.</h2>
-            <p className="text-slate-300">CareerLens helps you understand which career paths are expanding, where opportunities are emerging, and how to prepare for tomorrow's roles.</p>
+            <p className="text-slate-300">NextStep AI helps you understand which career paths are expanding, where opportunities are emerging, and how to prepare for tomorrow's roles.</p>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -55,7 +55,7 @@ export default function IndustryInsights() {
               </div>
             </div>
             <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 text-slate-300">
-              <p className="text-sm uppercase tracking-[0.35em] text-cyan-300/80">How CareerLens helps</p>
+              <p className="text-sm uppercase tracking-[0.35em] text-cyan-300/80">How NextStep AI helps</p>
               <p className="mt-4 leading-7">We help you explore which career paths match your interests and skills, show you the typical progression for each role, and recommend the key areas you should focus on to succeed. When you're ready, generate a personalized roadmap.</p>
             </div>
           </div>
