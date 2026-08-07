@@ -33,23 +33,14 @@ export default function ResumeBuilder({ initialContent, resume }) {
   const [pdfFile, setPdfFile] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const [jobDescription, setJobDescription] = useState("");
-  const [scanResult, setScanResult] = useState(() => {
-    if (!resume) return null;
-    return {
-      atsScore: resume.atsScore ?? null,
-      missingKeywords: [],
-      strengths: [],
-      weaknesses: [],
-      suggestions: [],
-      feedback: resume.feedback ?? "",
-    };
-  });
+  const [scanResult, setScanResult] = useState(null);
 
   const {
     loading: isMatching,
     fn: matchResumeFn,
     data: matchResult,
     error: matchError,
+    setData: setMatchData,
   } = useFetch(matchResumeToJobDescription);
 
   const {
@@ -102,17 +93,10 @@ export default function ResumeBuilder({ initialContent, resume }) {
   }, [saveResult, saveError, isSaving]);
 
   useEffect(() => {
-    if (resume) {
-      setScanResult({
-        atsScore: resume.atsScore ?? null,
-        missingKeywords: [],
-        strengths: [],
-        weaknesses: [],
-        suggestions: [],
-        feedback: resume.feedback ?? "",
-      });
-    }
-  }, [resume]);
+    setScanResult(null);
+    setMatchData(null);
+    setJobDescription("");
+  }, []);
 
   const handlePdfFileChange = (event) => {
     const file = event.target.files?.[0] ?? null;
@@ -120,6 +104,9 @@ export default function ResumeBuilder({ initialContent, resume }) {
   };
 
   const analyzeResumeMatch = async () => {
+    setScanResult(null);
+    setMatchData(null);
+
     if (!jobDescription.trim()) {
       toast.error("Please paste a job description to analyze.");
       return;
@@ -140,6 +127,8 @@ export default function ResumeBuilder({ initialContent, resume }) {
     }
 
     setIsScanning(true);
+    setScanResult(null);
+    setMatchData(null);
 
     try {
       const formData = new FormData();
@@ -433,6 +422,12 @@ export default function ResumeBuilder({ initialContent, resume }) {
           )}
         </Button>
       </div>
+
+      {!isMatching && !isScanning && !scanResult?.atsScore && !matchResult?.matchScore && (
+        <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          Upload your resume and job description, then click &quot;Analyze Match&quot; to generate your ATS analysis.
+        </div>
+      )}
 
       {scanResult?.atsScore != null && (
         <div className="grid gap-4 md:grid-cols-2">
