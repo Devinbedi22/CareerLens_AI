@@ -27,7 +27,7 @@ import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
 
 export default function ResumeBuilder({ initialContent, resume }) {
   const [activeTab, setActiveTab] = useState("edit");
-  const [previewContent, setPreviewContent] = useState(initialContent);
+  const [previewContent, setPreviewContent] = useState("");
   const { user } = useUser();
   const [resumeMode, setResumeMode] = useState("preview");
   const [pdfFile, setPdfFile] = useState(null);
@@ -70,15 +70,11 @@ export default function ResumeBuilder({ initialContent, resume }) {
 
   const formValues = watch();
 
-  useEffect(() => {
-    if (initialContent) setActiveTab("preview");
-  }, [initialContent]);
-
   // Update preview content when form values change
   useEffect(() => {
     if (activeTab === "edit") {
       const newContent = getCombinedContent();
-      setPreviewContent(newContent ? newContent : initialContent);
+      setPreviewContent(newContent || "");
     }
   }, [formValues, activeTab]);
 
@@ -806,6 +802,7 @@ export default function ResumeBuilder({ initialContent, resume }) {
               onChange={setPreviewContent}
               height={800}
               preview={resumeMode}
+              placeholder="Upload a resume or start typing here..."
             />
           </div>
         </TabsContent>
