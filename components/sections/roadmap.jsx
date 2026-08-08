@@ -86,7 +86,7 @@ export default function RoadmapSection() {
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.7 }}
-            className="glass-card border-cyan-300/10 p-6 shadow-cyan-500/10 h-fit"
+            className="glass-card border-cyan-300/10 p-6 shadow-cyan-500/10 h-fit lg:self-center"
           >
             <div className="space-y-6">
               <div className="flex items-start justify-between gap-4">
