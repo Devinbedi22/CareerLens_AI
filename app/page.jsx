@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import HeroSection from "@/components/hero";
 import FeatureGrid from "@/components/sections/feature-grid";
-import RoadmapSection from "@/components/sections/roadmap";
+import CareerRoadmapExperience from "@/components/sections/career-roadmap-experience";
 import IndustryInsights from "@/components/sections/industry-insights";
-import TestimonialsCarousel from "@/components/sections/testimonials-carousel";
 import FAQSection from "@/components/sections/faq-section";
 import { ArrowRight } from "lucide-react";
 
@@ -20,7 +18,7 @@ export default function Home() {
   return (
     <div className="relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(0,217,255,0.12),transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(0,217,255,0.06),transparent_30%)] pointer-events-none" />
-      <HeroSection />
+      <CareerRoadmapExperience />
 
       <section className="py-16">
         <div className="container mx-auto px-4">
@@ -38,9 +36,7 @@ export default function Home() {
       </section>
 
       <FeatureGrid />
-      <RoadmapSection />
       <IndustryInsights />
-      <TestimonialsCarousel />
       <FAQSection />
 
       <section id="cta" className="py-24">

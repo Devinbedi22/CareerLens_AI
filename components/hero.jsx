@@ -5,17 +5,9 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check } from "lucide-react";
+import { careerPaths } from "@/data/career-paths";
 
-const careerPaths = {
-  "Software Engineering": { roadmap: ["Foundations", "Projects", "Internship", "Entry Role", "Growth"], skills: ["System Design", "Full Stack", "Problem Solving", "Communication"] },
-  "Data Science": { roadmap: ["Python & Stats", "ML Projects", "Data Intern", "Analytics Role", "Specialization"], skills: ["ML Algorithms", "SQL", "Statistics", "Data Visualization"] },
-  "Product Management": { roadmap: ["Product Thinking", "Case Studies", "PM Internship", "Associate PM", "Strategy Lead"], skills: ["Product Strategy", "User Research", "Analytics", "Leadership"] },
-  "Cybersecurity": { roadmap: ["Security Fundamentals", "Labs & CTF", "SOC Internship", "Security Engineer", "Specialist"], skills: ["Network Security", "Threat Analysis", "Compliance", "Incident Response"] },
-  "Cloud Engineering": { roadmap: ["Cloud Basics", "Certifications", "Cloud Intern", "Cloud Engineer", "Solutions Architect"], skills: ["AWS/Azure", "Infrastructure", "DevOps", "Architecture"] },
-};
-
-export default function HeroSection() {
-  const [selectedPath, setSelectedPath] = useState("Software Engineering");
+export default function HeroSection({ selectedPath, onSelectedPathChange }) {
   const currentPath = careerPaths[selectedPath];
   return (
     <section id="hero" className="relative overflow-hidden pb-20 pt-40 md:pt-44">
@@ -56,7 +48,7 @@ export default function HeroSection() {
                     {Object.keys(careerPaths).map((path) => (
                       <button
                         key={path}
-                        onClick={() => setSelectedPath(path)}
+                        onClick={() => onSelectedPathChange(path)}
                         className={`rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-200 ${
                           selectedPath === path
                             ? "border-cyan-300/80 bg-cyan-500/15 text-white"
@@ -74,7 +66,7 @@ export default function HeroSection() {
 
                 <div className="rounded-[2rem] border border-white/10 bg-slate-950/85 p-5">
                   <p className="text-xs uppercase tracking-[0.35em] text-cyan-300/80">Your path</p>
-                  <p className="mt-3 text-sm text-slate-200">{currentPath.roadmap.join(" → ")}</p>
+                    <p className="mt-3 text-sm text-slate-200">{currentPath.roadmap.map((step) => step.title).join(" → ")}</p>
                 </div>
 
                 <div className="rounded-[2rem] border border-white/10 bg-slate-950/85 p-5">
@@ -91,11 +83,11 @@ export default function HeroSection() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-[2rem] border border-white/10 bg-slate-950/85 p-4 text-white">
                     <p className="text-xs uppercase tracking-[0.35em] text-cyan-300/80">Roadmap length</p>
-                    <p className="mt-2 text-lg font-semibold">5 milestones</p>
+                    <p className="mt-2 text-lg font-semibold">{currentPath.roadmap.length} milestones</p>
                   </div>
                   <div className="rounded-[2rem] border border-white/10 bg-slate-950/85 p-4 text-white">
                     <p className="text-xs uppercase tracking-[0.35em] text-cyan-300/80">Typical timeline</p>
-                    <p className="mt-2 text-lg font-semibold">2–5 years</p>
+                    <p className="mt-2 text-lg font-semibold">{currentPath.typicalTimeline}</p>
                   </div>
                 </div>
               </div>

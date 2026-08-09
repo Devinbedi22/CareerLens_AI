@@ -50,7 +50,6 @@ const Header = async () => {
           <Link href="/#features" className="transition hover:text-cyan-300">Features</Link>
           <Link href="/#roadmap" className="transition hover:text-cyan-300">Roadmap</Link>
           <Link href="/#insights" className="transition hover:text-cyan-300">Insights</Link>
-          <Link href="/#testimonials" className="transition hover:text-cyan-300">Testimonials</Link>
           <Link href="/#faq" className="transition hover:text-cyan-300">FAQ</Link>
         </div>
 

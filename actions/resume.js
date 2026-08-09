@@ -282,6 +282,8 @@ export async function analyzeResumeText(text, industry) {
     throw new Error("Industry is required to analyze resume text");
   }
 
+  const currentDate = new Date().toISOString().slice(0, 10);
+
   const prompt = `
 Analyze this resume text for a ${industry} professional and return ONLY valid JSON with this exact shape:
 {
@@ -298,6 +300,9 @@ Focus on:
 - resume strengths
 - resume weaknesses
 - actionable improvement suggestions
+- The supplied current date is ${currentDate} (YYYY-MM-DD). Use this date when evaluating every date in the resume.
+- Only describe an experience, education, project, certification, or other date as future-dated when it is after ${currentDate}.
+- Completed date ranges that end on or before ${currentDate} are not future-dated.
 
 Return EXACT JSON only. No markdown, no code fences, no explanations.
 

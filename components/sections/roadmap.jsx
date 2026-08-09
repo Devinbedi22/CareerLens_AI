@@ -1,44 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowDownRight, Sparkles, ShieldCheck, Briefcase, ChevronRight } from "lucide-react";
+import { Sparkles, ChevronRight } from "lucide-react";
+import { careerPaths, DEFAULT_CAREER_PATH } from "@/data/career-paths";
 
-const steps = [
-  { title: "Foundations", subtitle: "Build core knowledge and skills" },
-  { title: "Hands-On Experience", subtitle: "Work on projects and intern opportunities" },
-  { title: "Entry-Level Role", subtitle: "Land your first professional position" },
-  { title: "Career Growth", subtitle: "Expand expertise and take on leadership" },
-  { title: "Specialization", subtitle: "Become an expert in your domain" },
-];
-
-export default function RoadmapSection() {
+export default function RoadmapSection({ selectedPath = DEFAULT_CAREER_PATH }) {
   const [active, setActive] = useState(2);
+  const currentPath = careerPaths[selectedPath] || careerPaths[DEFAULT_CAREER_PATH];
+  const steps = currentPath.roadmap;
 
-  const activeDetail = {
-    title: steps[active].title,
-    description:
-      active === 0
-        ? "Develop essential knowledge through learning resources, certifications, and foundational projects. Understand your industry and what success looks like."
-        : active === 1
-        ? "Apply your skills through internships, volunteer work, or personal projects. Build a portfolio and gain real-world experience in your chosen field."
-        : active === 2
-        ? "Secure your first professional role. Focus on demonstrating your skills, cultural fit, and readiness to contribute from day one."
-        : active === 3
-        ? "Deepen your expertise, take on bigger challenges, and expand your impact. Develop leadership and mentoring capabilities."
-        : "Become a recognized expert in your domain. Lead initiatives, influence strategy, and shape your industry's future.",
-    focus:
-      active === 0
-        ? "Core concepts, certifications, portfolio projects"
-        : active === 1
-        ? "Real-world application, networking, resume building"
-        : active === 2
-        ? "Interview preparation, role-specific skills, cultural alignment"
-        : active === 3
-        ? "Advanced techniques, team leadership, strategic thinking"
-        : "Thought leadership, specialized expertise, mentorship",
-    timeline: active === 0 ? "3-12 months" : active === 1 ? "6-18 months" : active === 2 ? "6-12 months" : active === 3 ? "2-4 years" : "Ongoing",
-  };
+  useEffect(() => {
+    setActive(Math.min(2, steps.length - 1));
+  }, [selectedPath, steps.length]);
+
+  const activeDetail = steps[active];
 
   return (
     <section id="roadmap" className="relative py-20">
@@ -94,7 +70,7 @@ export default function RoadmapSection() {
                   <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Milestone {active + 1}</p>
                   <h3 className="mt-2 text-3xl font-semibold text-white">{activeDetail.title}</h3>
                 </div>
-                <div className="rounded-3xl bg-white/5 px-4 py-2 text-sm text-cyan-100">of 5</div>
+                <div className="rounded-3xl bg-white/5 px-4 py-2 text-sm text-cyan-100">of {steps.length}</div>
               </div>
 
               <div className="rounded-3xl bg-slate-950/80 p-5 ring-1 ring-white/10">
