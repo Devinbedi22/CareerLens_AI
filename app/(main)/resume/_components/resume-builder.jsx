@@ -343,19 +343,6 @@ export default function ResumeBuilder({ initialContent, resume }) {
               </>
             )}
           </Button>
-          <Button onClick={generatePDF} disabled={isGenerating}>
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating PDF...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" />
-                Download PDF
-              </>
-            )}
-          </Button>
         </div>
       </div>
 
@@ -590,10 +577,25 @@ export default function ResumeBuilder({ initialContent, resume }) {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="edit">Form</TabsTrigger>
-          <TabsTrigger value="preview">Markdown</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4">
+          <TabsList>
+            <TabsTrigger value="edit">Form</TabsTrigger>
+            <TabsTrigger value="preview">Markdown</TabsTrigger>
+          </TabsList>
+          <Button onClick={generatePDF} disabled={isGenerating}>
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                Download Resume
+              </>
+            )}
+          </Button>
+        </div>
 
         <TabsContent value="edit">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
@@ -808,8 +810,18 @@ export default function ResumeBuilder({ initialContent, resume }) {
         </TabsContent>
       </Tabs>
 
-      {/* Hidden div for PDF generation - Always rendered outside tabs */}
-      <div className="hidden">
+      {/* Keep the PDF source out of page flow while preserving PDF generation. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          left: "-10000px",
+          top: 0,
+          width: "210mm",
+          background: "white",
+          zIndex: -1,
+        }}
+      >
         <div id="resume-pdf">
           <MDEditor.Markdown
             source={previewContent}
