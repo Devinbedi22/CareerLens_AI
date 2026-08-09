@@ -6,6 +6,35 @@ import { generateText } from "@/lib/genai";
 
 const DAILY_LIMIT = 10;
 
+const TEMPLATE_PLACEHOLDER_PATTERN = /\[[^\]]+\]/g;
+
+function formatGeneratedCoverLetter(content, { name, email, currentDate }) {
+  const cleanedContent = content
+    .replace(TEMPLATE_PLACEHOLDER_PATTERN, "")
+    .replace(/^\s*[-|,;:]?\s*$/gm, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  const salutationMatch = cleanedContent.match(/^Dear .+$/im);
+  if (!salutationMatch) return cleanedContent;
+
+  const salutationIndex = salutationMatch.index;
+  let header = cleanedContent.slice(0, salutationIndex);
+  const body = cleanedContent.slice(salutationIndex).trim();
+
+  [name, email, currentDate].filter(Boolean).forEach((value) => {
+    header = header.replaceAll(value, `\n${value}\n`);
+  });
+
+  header = header
+    .replace(/\s*\|\s*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return `${header}\n\n${body}`.trim();
+}
+
 async function getAuthenticatedUser() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -40,10 +69,18 @@ export async function generateCoverLetter(data) {
     throw new Error(`Daily limit of ${DAILY_LIMIT} cover letters reached. Try again tomorrow.`);
   }
 
+  const currentDate = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
   const prompt = `
-Write a professional cover letter for a ${data.jobTitle} position at ${data.companyName}.
+Create the FINAL, ready-to-use professional cover letter for a ${data.jobTitle} position at ${data.companyName}.
 
 About the candidate:
+${user.name ? `- Name: ${user.name}` : ""}
+${user.email ? `- Email: ${user.email}` : ""}
 ${user.industry ? `- Industry: ${user.industry}` : ''}
 ${user.experience ? `- Years of Experience: ${user.experience}` : ''}
 ${user.skills?.length ? `- Skills: ${user.skills.join(", ")}` : ''}
@@ -51,6 +88,8 @@ ${user.bio ? `- Professional Background: ${user.bio}` : ''}
 
 Job Description:
 ${data.jobDescription}
+
+Current date: ${currentDate}
 
 Requirements:
 1. Professional and enthusiastic tone
@@ -60,8 +99,13 @@ Requirements:
 5. Proper business letter formatting in markdown
 6. Include specific achievements
 7. Align candidate's background with role requirements
+8. Format the opening vertically: each available candidate contact item on its own line, then a blank line, then ${currentDate}, then a blank line, then the hiring recipient, company name, and company location on separate lines when known.
+9. Use the actual candidate values supplied above. Omit unavailable address, phone, location, or other fields.
+10. Never output placeholders, templates, bracketed instructions, or example text. Forbidden examples include [Your Name], [Your Address], [Your Phone Number], [Your Email Address], [Date], [City, State, Zip Code], [Company Address], and [Hiring Manager].
+11. Do not invent personal contact information or company details.
+12. The response must be only the finished cover letter, not instructions to the user.
 
-Return ONLY the cover letter in markdown format. No explanations.
+Return ONLY the final cover letter in markdown format. No explanations or template text.
 `;
 
   // Create placeholder
@@ -77,10 +121,20 @@ Return ONLY the cover letter in markdown format. No explanations.
   });
 
   try {
-      const content = await generateText(prompt, "gemini-2.5-flash");
+      const generatedContent = await generateText(prompt, "gemini-2.5-flash");
+
+      if (!generatedContent) {
+        throw new Error("Empty response from AI");
+      }
+
+      const content = formatGeneratedCoverLetter(generatedContent, {
+        name: user.name,
+        email: user.email,
+        currentDate,
+      });
 
       if (!content) {
-        throw new Error("Empty response from AI");
+        throw new Error("AI returned only template placeholders");
       }
     // Update with generated content
     return await db.coverLetter.update({
